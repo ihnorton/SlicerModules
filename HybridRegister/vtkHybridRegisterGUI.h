@@ -96,6 +96,8 @@ class VTK_HybridRegister_EXPORT vtkHybridRegisterGUI : public vtkSlicerModuleGUI
   virtual void BuildGUI ( );
   void BuildGUIForHelpFrame();
   void BuildGUIForAcquireControlFrame();
+  void BuildGUIForRegisterControlFrame();
+
 
   //----------------------------------------------------------------
   // Update routines
@@ -119,8 +121,11 @@ class VTK_HybridRegister_EXPORT vtkHybridRegisterGUI : public vtkSlicerModuleGUI
 
   vtkSlicerNodeSelectorWidget* Transform1NodeSelectorMenu;
   vtkSlicerNodeSelectorWidget* Transform2NodeSelectorMenu;
+  vtkSlicerNodeSelectorWidget* OutputTransformNodeSelectorMenu;
   vtkKWPushButton* StartButton;
   vtkKWPushButton* StopButton;
+  vtkKWPushButton* RegisterButton;
+  vtkKWPushButton* DebugButton;
   vtkKWEntryWithLabel* CollectionIntervalEntry;
 
   //----------------------------------------------------------------

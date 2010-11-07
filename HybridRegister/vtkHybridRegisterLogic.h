@@ -23,6 +23,9 @@
 
 #include "vtkHybridRegisterWin32Header.h"
 
+#include "vtkPoints.h"
+#include "vtkCollection.h"
+
 #include "vtkSlicerBaseLogic.h"
 #include "vtkSlicerModuleLogic.h"
 #include "vtkSlicerApplication.h"
@@ -48,10 +51,14 @@ class VTK_HybridRegister_EXPORT vtkHybridRegisterLogic : public vtkSlicerModuleL
   
   void StartPointCollection(vtkMRMLTransformableNode *node1, vtkMRMLTransformableNode *node2);
   void StopPointCollection();
+  int RunRegistration();
   int SetCollectionInterval ( int );
   int SetTransform(const char*, int);
+  int SetOutputTransformNodeID ( const char* );
   void ProcessTimerEvents();
   void ProcessMRMLEvents( vtkObject *, unsigned long, void *);
+
+  void DebugDisplay();
 
   vtkTypeRevisionMacro(vtkHybridRegisterLogic,vtkObject);
   void PrintSelf(ostream&, vtkIndent);
@@ -73,16 +80,22 @@ class VTK_HybridRegister_EXPORT vtkHybridRegisterLogic : public vtkSlicerModuleL
 
   int CollectionInterval;
   int TimerFlag;
-
+  const char* OutputTransformNodeID;
   const char* Transform1NodeId;
   const char* Transform2NodeId;
-
   vtkCollection* TransformSet1;
   vtkCollection* TransformSet2;
-
   vtkMRMLLinearTransformNode* TransformNode1;
   vtkMRMLLinearTransformNode* TransformNode2;
 
+  vtkPoints* GetPointsFromTransformCollection(vtkCollection*);
+  vtkPolyData* MakePolyDataWithCells(vtkPoints*);
+
+  //DEBUG
+  vtkPolyData* pd1;
+  vtkPolyData* pd2;
+  vtkMRMLModelNode* mod1;
+  vtkMRMLModelNode* mod2;
 
 };
 

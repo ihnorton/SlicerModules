@@ -60,8 +60,11 @@ vtkHybridRegisterGUI::vtkHybridRegisterGUI ( )
 
   this->Transform1NodeSelectorMenu = vtkSlicerNodeSelectorWidget::New();
   this->Transform2NodeSelectorMenu = vtkSlicerNodeSelectorWidget::New();
-  this->StartButton = vtkKWPushButton::New ( );
-  this->StopButton = vtkKWPushButton::New ( );
+  this->OutputTransformNodeSelectorMenu = vtkSlicerNodeSelectorWidget::New();
+  this->StartButton = vtkKWPushButton::New();
+  this->StopButton = vtkKWPushButton::New();
+  this->RegisterButton = vtkKWPushButton::New();
+  this->DebugButton = vtkKWPushButton::New();
   this->CollectionIntervalEntry = vtkKWEntryWithLabel::New();
 
   
@@ -93,8 +96,10 @@ vtkHybridRegisterGUI::~vtkHybridRegisterGUI ( )
 
   this->Transform1NodeSelectorMenu->Delete();
   this->Transform2NodeSelectorMenu->Delete();
+  this->OutputTransformNodeSelectorMenu->Delete();
   this->StartButton->Delete();
   this->StopButton->Delete();
+  this->RegisterButton->Delete();
   this->CollectionIntervalEntry->Delete();
 
 
@@ -152,6 +157,8 @@ void vtkHybridRegisterGUI::RemoveGUIObservers ( )
   //vtkSlicerApplicationGUI *appGUI = this->GetApplicationGUI();
  this->StartButton->RemoveObserver((vtkCommand *)this->GUICallbackCommand);
  this->StopButton->RemoveObserver((vtkCommand *)this->GUICallbackCommand);
+ this->RegisterButton->RemoveObserver((vtkCommand *)this->GUICallbackCommand);
+ this->DebugButton->RemoveObserver((vtkCommand *)this->GUICallbackCommand);
  this->RemoveLogicObservers();
 
 }
@@ -185,7 +192,10 @@ void vtkHybridRegisterGUI::AddGUIObservers ( )
     ->AddObserver(vtkKWPushButton::InvokedEvent, (vtkCommand *)this->GUICallbackCommand);
   this->StopButton
     ->AddObserver(vtkKWPushButton::InvokedEvent, (vtkCommand *)this->GUICallbackCommand);
-
+  this->RegisterButton
+		->AddObserver(vtkKWPushButton::InvokedEvent, (vtkCommand *)this->GUICallbackCommand);
+  this->DebugButton
+		->AddObserver(vtkKWPushButton::InvokedEvent, (vtkCommand *)this->GUICallbackCommand);
 
   this->AddLogicObservers();
 
@@ -230,12 +240,12 @@ void vtkHybridRegisterGUI::HandleMouseEvent(vtkSlicerInteractorStyle *style)
 
 
 //---------------------------------------------------------------------------
-void vtkHybridRegisterGUI::ProcessGUIEvents(vtkObject *caller,
-		unsigned long event, void *callData)
+void vtkHybridRegisterGUI::ProcessGUIEvents( vtkObject *caller,
+		unsigned long event, void *callData )
 {
-
-	if (this->StartButton == vtkKWPushButton::SafeDownCast(caller)
-		&& event == vtkKWPushButton::InvokedEvent)
+	const char* id;
+	if ( this->StartButton == vtkKWPushButton::SafeDownCast(caller)
+		&& event == vtkKWPushButton::InvokedEvent )
 	{
 		if ( this->Transform1NodeSelectorMenu->GetSelected() != NULL && this->Transform2NodeSelectorMenu->GetSelected() != NULL )
 		{
@@ -251,11 +261,31 @@ void vtkHybridRegisterGUI::ProcessGUIEvents(vtkObject *caller,
 			std::cerr << "ERROR: Must select both transforms!" << endl;
 		}
 	}
-	else if (this->StopButton == vtkKWPushButton::SafeDownCast(caller)
+	else if ( this->StopButton == vtkKWPushButton::SafeDownCast(caller)
 	&& event == vtkKWPushButton::InvokedEvent)
 	{
 		std::cerr << "StopButton is pressed." << std::endl;
 		this->Logic->StopPointCollection();
+	}
+	else if ( this->RegisterButton == vtkKWPushButton::SafeDownCast(caller)
+		&& event == vtkKWPushButton::InvokedEvent)
+	{
+		std::cerr << "RegisterButton is pressed." << std::endl;
+		vtkMRMLTransformableNode *outnode = vtkMRMLTransformableNode::SafeDownCast( this->OutputTransformNodeSelectorMenu->GetSelected() );
+		if ( outnode )
+		{
+			id = outnode->GetID();
+			this->Logic->SetOutputTransformNodeID ( id );
+			this->Logic->RunRegistration();
+		} else { std::cerr << "Output node must be selected!"; }
+		//std::cerr << "RunRegistration result: " << result << endl;
+	}
+	else if ( this->DebugButton == vtkKWPushButton::SafeDownCast(caller)
+			&& event == vtkKWPushButton::InvokedEvent)
+	{
+		std::cerr << "DebugButton is pressed." << std::endl;
+		this->Logic->DebugDisplay();
+		//std::cerr << "RunRegistration result: " << result << endl;
 	}
 
 } 
@@ -323,6 +353,7 @@ void vtkHybridRegisterGUI::BuildGUI ( )
 
   BuildGUIForHelpFrame();
   BuildGUIForAcquireControlFrame();
+  BuildGUIForRegisterControlFrame();
 
 }
 
@@ -341,6 +372,7 @@ void vtkHybridRegisterGUI::BuildGUIForHelpFrame ()
 }
 
 
+
 //---------------------------------------------------------------------------Selection
 void vtkHybridRegisterGUI::BuildGUIForAcquireControlFrame()
 {
@@ -352,7 +384,7 @@ void vtkHybridRegisterGUI::BuildGUIForAcquireControlFrame()
 
   moduleFrame->SetParent(page);
   moduleFrame->Create();
-  moduleFrame->SetLabelText("Controller");
+  moduleFrame->SetLabelText("Acquire");
   //transformSelectFrame->CollapseFrame();
   app->Script ("pack %s -side top -anchor nw -fill x -padx 2 -pady 2 -in %s",
                moduleFrame->GetWidgetName(), page->GetWidgetName());
@@ -405,21 +437,72 @@ void vtkHybridRegisterGUI::BuildGUIForAcquireControlFrame()
   this->StartButton->Create ( );
   this->StartButton->SetText ("Start");
   this->StartButton->SetWidth (12);
+  this->Script("pack %s %s -side right -padx 2 -pady 2",
+               this->StartButton->GetWidgetName() );
 
   this->StopButton->SetParent ( moduleFrame->GetFrame() );
   this->StopButton->Create ( );
   this->StopButton->SetText ("Stop");
   this->StopButton->SetWidth (12);
-
-  this->Script("pack %s %s -side left -padx 2 -pady 2", 
-               this->StartButton->GetWidgetName(),
+  this->Script("pack %s %s -side left -padx 2 -pady 2",
                this->StopButton->GetWidgetName());
 
   moduleFrame->Delete();
 
 }
 
+//----------------------------------------------------------------------------
 
+void vtkHybridRegisterGUI::BuildGUIForRegisterControlFrame()
+{
+
+  vtkSlicerApplication *app = (vtkSlicerApplication *)this->GetApplication();
+  vtkKWWidget *page = this->UIPanel->GetPageWidget ("HybridRegister");
+
+  vtkSlicerModuleCollapsibleFrame *moduleFrame = vtkSlicerModuleCollapsibleFrame::New();
+
+  moduleFrame->SetParent(page);
+  moduleFrame->Create();
+  moduleFrame->SetLabelText("Register");
+  //transformSelectFrame->CollapseFrame();
+  app->Script ("pack %s -side top -anchor nw -fill x -padx 2 -pady 2 -in %s",
+               moduleFrame->GetWidgetName(), page->GetWidgetName());
+
+  this->OutputTransformNodeSelectorMenu->SetParent( moduleFrame->GetFrame() );
+  this->OutputTransformNodeSelectorMenu->Create();
+  this->OutputTransformNodeSelectorMenu->SetWidth(30);
+  this->OutputTransformNodeSelectorMenu->SetNewNodeEnabled(1);
+  this->OutputTransformNodeSelectorMenu->SetNodeClass("vtkMRMLLinearTransformNode", NULL, NULL, NULL);
+  this->OutputTransformNodeSelectorMenu->NoneEnabledOn();
+  this->OutputTransformNodeSelectorMenu->SetShowHidden(1);
+  this->OutputTransformNodeSelectorMenu->Create();
+  this->OutputTransformNodeSelectorMenu->SetMRMLScene( this->Logic->GetMRMLScene() );
+  this->OutputTransformNodeSelectorMenu->UpdateMenu();
+  this->OutputTransformNodeSelectorMenu->SetBorderWidth(0);
+  this->OutputTransformNodeSelectorMenu->SetBalloonHelpString("Select registration output transform.");
+  app->Script("pack %s %s -side top -anchor w -fill x -padx 2 -pady 2",
+              moduleFrame->GetWidgetName() , this->OutputTransformNodeSelectorMenu->GetWidgetName());
+
+  // -----------------------------------------
+
+  this->RegisterButton->SetParent ( moduleFrame->GetFrame() );
+  this->RegisterButton->Create ( );
+  this->RegisterButton->SetText ("Register");
+  this->RegisterButton->SetWidth (12);
+  this->Script( "pack %s %s -side top -padx 2 -pady 2",
+								this->RegisterButton->GetWidgetName());
+
+  //DEBUG -----------------------------------------
+  this->DebugButton->SetParent ( moduleFrame->GetFrame() );
+  this->DebugButton->Create ( );
+  this->DebugButton->SetText ("DEBUG");
+  this->DebugButton->SetWidth (12);
+  this->Script( "pack %s %s -side top -padx 2 -pady 2",
+								this->DebugButton->GetWidgetName());
+
+  moduleFrame->Delete();
+
+}
 
 //----------------------------------------------------------------------------
 void vtkHybridRegisterGUI::UpdateAll()
